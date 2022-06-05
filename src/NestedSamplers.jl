@@ -36,6 +36,7 @@ using .Proposals
 include("staticsampler.jl") # The static nested sampler
 include("step.jl")          # The stepping mechanics (extends AbstractMCMC)
 include("sample.jl")        # Custom sampling (extends AbstractMCMC)
+include("sumchains.jl")        # Custom sampling (extends AbstractMCMC)
 
 include("models/Models.jl")
 using .Models
