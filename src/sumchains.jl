@@ -40,7 +40,7 @@ function original_logl(logw_array, nactive)
 end
 
 function eval_logl(chain::Chains, logl)
-    input_array = Array(chain.value)[:,1:end-1,1]
+    input_array = Array(chain.value)[:, 1:end-1, 1]
     len = length(input_array[:,1])
     logl_array = zeros(len)
     for i in 1:len

@@ -123,21 +123,22 @@ function bundle_samples(samples,
     if add_live
         samples, state = add_live_points(samples, model, sampler, state)
     end
-    vals = mapreduce(t -> hcat(t.v..., exp(t.logwt - state.logz)), vcat, samples)
+    vals = mapreduce(t -> hcat(t.v..., exp(t.logwt - state.logz), t.logl), vcat, samples)
 
     if check_wsum
-        wsum = sum(vals[:, end, 1])
+        wsum = sum(vals[:, end-1, 1])
         err = !iszero(state.logzerr) ? 3 * state.logzerr : 1e-3
         isapprox(wsum, 1, atol=err) || @warn "Weights sum to $wsum instead of 1; possible bug"
     end
-
+    names = deepcopy(param_names) #this to avoid problems when doing omre runs in parallel
     # Parameter names
-    if param_names === missing
-        param_names = ["Parameter $i" for i in 1:length(vals[1, :]) - 1]
+    if names === missing
+        names = ["Parameter $i" for i in 1:length(vals[1, :]) - 2]
     end
-    push!(param_names, "weights")
+    push!(names, "weights", "logl")
+    #println(size(vals))
 
-    return Chains(vals, param_names, Dict(:internals => ["weights"]), evidence=state.logz), state
+    return Chains(vals, names, Dict(:internals => ["weights", "logl"]), evidence=state.logz), state
 end
 
 function bundle_samples(samples,
@@ -153,10 +154,10 @@ function bundle_samples(samples,
         samples, state = add_live_points(samples, model, sampler, state)
     end
 
-    vals = mapreduce(t -> hcat(t.v..., exp(t.logwt - state.logz)), vcat, samples)
+    vals = mapreduce(t -> hcat(t.v..., exp(t.logwt - state.logz), t.logl), vcat, samples)
 
     if check_wsum
-        wsum = sum(vals[:, end])
+        wsum = sum(vals[:, end-1])
         err = !iszero(state.logzerr) ? 3 * state.logzerr : 1e-3
         isapprox(wsum, 1, atol=err) || @warn "Weights sum to $wsum instead of 1; possible bug"
     end
@@ -212,7 +213,7 @@ function add_live_points(samples, model, sampler, state)
     prev_logz = state.logz
     prev_h = state.h
 
-    local logl, logz, h, logzerr 
+    local logl, logz, h, logzerr
     N = length(samples)
 
     @inbounds for (i, idx) in enumerate(eachindex(state.logl))
