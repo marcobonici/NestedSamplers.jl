@@ -48,3 +48,35 @@ function eval_logl(chain::Chains, logl)
     end
     return logl_array
 end
+
+function merge_chains(chains_array,
+    sampler::Nested,
+    check_wsum=true,
+    kwargs...)
+    num_chains = length(chains_array)
+    cat_chains = Array(chains_array[1].value)
+    for i in 2:num_chains
+        cat_chains = cat(cat_chains, Array(chains_array[i].value), dims = 1)
+    end
+    cat_chains = cat_chains[sortperm(cat_chains[:, end]), :]
+    logvol = log1mexp(-1 / (sampler.nactive*num_chains))
+    logl = cat_chains[1,end,1]
+    logwt = logl + logvol
+    cat_chains[1,end-1,1] = logwt
+    logz = logwt
+    logvol -= 1 / (sampler.nactive*num_chains)
+    for i in 2:length(cat_chains[:,1,1])
+        logwt = logvol + cat_chains[i,end,1]
+        cat_chains[i, end-1, 1] = logwt
+        logz = logaddexp(logz, logwt)
+        logvol -= 1 / (sampler.nactive*num_chains)
+    end
+    result = 0.
+    n_live = sampler.nactive*num_chains
+    for i in 1:length(cat_chains[:,1,1])
+        h = exp(-(i-1)/n_live)-exp(-i/n_live)
+        result += exp(cat_chains[i,end,1])*h
+    end
+    return log(result)
+
+end
